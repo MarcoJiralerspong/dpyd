@@ -4,11 +4,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-
 """ SETUP DATA """
 
 populations = ["eas", "afr", "amr", "asj", "sas", "nfe", "fin"]
-filtered_variants = pd.read_csv('../data/filtered_variants.tsv', sep='\t')
+filtered_variants = pd.read_csv('../analysis/filtered_variants.tsv', sep='\t')
 filtered_variants_inesss = filtered_variants.loc[filtered_variants['INESSS'] == True] # Only inesss variants
 
 freq_lof = {}
