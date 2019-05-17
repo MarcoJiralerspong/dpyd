@@ -39,6 +39,10 @@ Once filtered, we compare the allele frequency of these variants as well as the 
 
 ## Use
 
- 1. Create directory with `data` and `scripts` folders.
- 2. Download all data files into
+ 1. Navigate in your command line to directory where you want to put project.
+ 2. Run `git clone https://github.com/MarcoJiralerspong/dpyd.git`
+ 3. `cd dpyd` and create a folder called `data` there.
+ 4. Download all data files into `data` folder (see structure above).
+ 5. Navigate to `scripts` folder and run `python create_tsvs.py` to create .tsv files and then run `python create_graphs.py` to create the graph.
+ 6. All results will be placed in the `analysis` folder.
 
