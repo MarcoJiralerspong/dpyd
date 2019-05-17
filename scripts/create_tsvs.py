@@ -141,7 +141,7 @@ clean_dict = create_row_dict(gnomad_genome_dict, clin_dict, clean_dict) # Update
 pre_filter_variants = pd.DataFrame.from_dict(clean_dict, orient='index')
 
 # Export pre_filter version to .tsv
-export_tsv = pre_filter_variants.to_csv (r'../data/clean_gnomad.tsv', index = None, header=True, sep='\t')
+export_tsv = pre_filter_variants.to_csv (r'../analysis/clean_gnomad.tsv', index = None, header=True, sep='\t')
 
 
 """ FILTER DATA """
@@ -159,6 +159,6 @@ filtered_variants = pre_filter_variants.loc[
 ]
 
 # Export post_filter version to .tsv
-export_tsv = filtered_variants.to_csv (r'../data/filtered_variants.tsv', index = None, header=True, sep='\t')
+export_tsv = filtered_variants.to_csv (r'../analysis/filtered_variants.tsv', index = None, header=True, sep='\t')
 
 
