@@ -135,7 +135,7 @@ clin_df = filtered_variants.loc[filtered_variants['CLIN_SIG'].isin(CLIN_SIGs) & 
 # Only HC or LC LOF not in first 2
 lof_df = filtered_variants.loc[filtered_variants['LOF'].isin(LOFs) &
                                  (filtered_variants['INESSS'] != 'True') &
-                                 filtered_variants['CLIN_SIG'].isin(CLIN_SIGs)
+                                 ~filtered_variants['CLIN_SIG'].isin(CLIN_SIGs)
 ]
 
 # Those in either of the first 3
