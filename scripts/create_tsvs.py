@@ -1,4 +1,5 @@
 import pandas as pd
+import requests
 from cyvcf2 import VCF
 
 
@@ -34,6 +35,56 @@ def create_var_dict(var_list):
         dict[var_id] = variant
 
     return dict
+
+
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+
+
+def get_transcript(ids):
+    """
+    :param id: List of variant IDs
+    :return: Dict of var_id -> transcript from variantvalidator.org (API)
+    """
+
+    # Make request
+    url = "https://rest.variantvalidator.org/variantformatter/GRCh37/%s/all/None/False" % ('|').join(ids)
+    response = requests.get(url)
+
+    dict = response.json()
+    transcript_dict = {}
+
+    # Create dictionary
+    for id in ids:
+        id_dict = dict[id][id]['hgvs_t_and_p']
+        transcript_dict[id] = id_dict[list(id_dict.keys())[0]]['t_hgvs']
+
+    return transcript_dict
+
+
+def add_transcript_column(df):
+    """
+    :param df: Dataframe to add column to with ('VAR_ID') column
+    :return: Dataframe with added column
+    """
+    transcripts = {}
+
+    # Splits the list of variants into lists of 10 for VariantValidator (recommends 10 at a time)
+    for id_list in list(chunks(df['VAR_ID'].tolist(), 10)):
+
+        # Get corresponding dictionary to list
+        transcript_dict = get_transcript(id_list)
+
+        # Update transcripts dict
+        for id in id_list:
+            transcripts[id] = transcript_dict[id]
+
+    # Add column to df
+    df = df.assign(TRANSCRIPT = pd.Series(transcripts))
+
+    return df
 
 
 def create_row_dict(gnomad_dict, clinvar_dict):
@@ -126,23 +177,28 @@ CLIN_SIGs = ["Pathogenic", "Likely_pathogenic" , "Pathogenic/Likely_pathogenic"]
 # Only look through those with no filter
 filtered_variants = pre_filter_variants.loc[(pre_filter_variants['FILTER'] == 'None')]
 
+
 # Only INESSS variants
 inesss_df = filtered_variants.loc[filtered_variants['INESSS'] == 'True']
+inesss_df = add_transcript_column(inesss_df)
 
 # Only likely or pathogenic variants according to ClinVar (not INESSS)
 clin_df = filtered_variants.loc[filtered_variants['CLIN_SIG'].isin(CLIN_SIGs) & (filtered_variants['INESSS'] != 'True')]
+clin_df = add_transcript_column(clin_df)
 
 # Only HC or LC LOF not in first 2
 lof_df = filtered_variants.loc[filtered_variants['LOF'].isin(LOFs) &
                                  (filtered_variants['INESSS'] != 'True') &
                                  ~filtered_variants['CLIN_SIG'].isin(CLIN_SIGs)
 ]
+lof_df = add_transcript_column(lof_df)
 
 # Those in either of the first 3
 all_df = filtered_variants.loc[filtered_variants['LOF'].isin(LOFs) |
                                  (filtered_variants['INESSS'] == 'True') |
                                  filtered_variants['CLIN_SIG'].isin(CLIN_SIGs)
 ]
+all_df = add_transcript_column(all_df)
 
 
 """ EXPORT TO .TSV """
