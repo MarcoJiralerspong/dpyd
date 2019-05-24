@@ -70,6 +70,7 @@ Once filtered, we compare the allele frequency of these variants as well as the 
     - `INESSS`: `'True'` if VAR_ID in `['1-97915614-C-T', '1-97547947-T-A', '1-97981343-A-C', '1-98039419-C-T']` else `'False'`
     - `CLIN_SIG`: CLNSIG from ClinVar if found, else `'NA'`.
     - For each population in `["eas", "afr", "amr", "asj", "sas", "nfe", "fin"]`, `AC_pop`, `AN_pop` and `NHOMALT_pop` from gnomAD.
+    - `TRANSCRIPT`: Using the VAR_ID, query the variantvalidator.org API and get the (:c.) transcript.
  - Filter the dataframe by only including variants whose `FILTER` is `NONE`.
  - Split the filtered dataframe into three distinct dataframes:
     - INESSS variants which only includes those specified by INESSS.
