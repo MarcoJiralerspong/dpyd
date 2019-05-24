@@ -47,4 +47,32 @@ Once filtered, we compare the allele frequency of these variants as well as the 
 
 ## Generated files
  - `clean_gnomad.tsv`: All DPYD variants with their associated ID, clinical signature, allele count, etc.
- - `filtered_variants`.tsv: Same fields as above but only filtered variants that meet the requirements described above.
+ - `inesss_variants.tsv`: Same fields as above but only INESSS variants.
+ - `clin_variants.tsv`: Only variants that have a "Likely pathogenic", "Likely pathogenic/pathogenic" or "Pathogenic" CLIN SIG and that are not in INESSS.
+ - `lof_variants.tsv`: Only variants that are not in the previous 2 files and have either a "HC" or "LC" LOF.
+ - `all_variants.tsv`: The union of the variants from the previous 3 files.
+
+## Methodology
+ - Download the .vcf.gz files and their associated tabix specified above.
+ - Using a region query around the areas specified [here](https://gnomad.broadinstitute.org/gene/ENSG00000188641) with padding of 100 000 on both sides, get all variants associated to the gene DPYD.
+   - The gene of the variant is obtained in the INFO.GENEINFO field (1st position) of the VCF file for ClinVar
+   - For gnomAD, it is in the INFO.vep field (4th position)
+ - Create dataframe with the following fields:
+    - `VAR_ID`: CHR-POS-REF-ALT.
+    - `CHR`: CHR from gnomAD.
+    - `REF`: REF from gnomAD.
+    - `ALT`: ALT from gnomAD.
+    - `QUAL`: QUAL from gnomAD.
+    - `FILTER`: FILTER from gnomAD.
+    - `AC`: AC from gnomAD.
+    - `NHOMALT`: nhomalt from gnomAD.
+    - `LOF`: LOF from gnomAD.
+    - `INESSS`: `'True'` if VAR_ID in `['1-97915614-C-T', '1-97547947-T-A', '1-97981343-A-C', '1-98039419-C-T']` else `'False'`
+    - `CLIN_SIG`: CLNSIG from ClinVar if found, else `'NA'`.
+    - For each population in `["eas", "afr", "amr", "asj", "sas", "nfe", "fin"]`, `AC_pop`, `AN_pop` and `NHOMALT_pop` from gnomAD.
+ - Filter the dataframe by only including variants whose `FILTER` is `NONE`.
+ - Split the filtered dataframe into three distinct dataframes:
+    - INESSS variants which only includes those specified by INESSS.
+    - CLINVAR variants which have a "Likely pathogenic", "Likely pathogenic/pathogenic" or "Pathogenic" CLIN SIG .
+    - LOF variants which have "HC" or "LC" for LOF.
+ - Export the dataframes as .tsv files.
