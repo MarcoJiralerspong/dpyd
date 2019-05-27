@@ -1,3 +1,5 @@
+import re
+
 import pandas as pd
 import requests
 from cyvcf2 import VCF
@@ -82,7 +84,7 @@ def add_transcript_column(df):
             transcripts[id] = transcript_dict[id]
 
     # Add column to df
-    df = df.assign(TRANSCRIPT = pd.Series(transcripts))
+    df = df.assign(TRANSCRIPT=pd.Series(transcripts))
 
     return df
 
@@ -133,17 +135,29 @@ def create_row_dict(gnomad_dict, clinvar_dict):
             output_dict[id]['AN' + '_' + population] = variant.INFO.get('AN' + '_' + population)
             output_dict[id]['NHOMALT' + '_' + population] = variant.INFO.get('nhomalt' + '_' + population)
 
-
     return output_dict
+
+
+def filter_export_df(df, filter_fn, destination):
+    """
+    :param df: Dataframe to filter
+    :param filter_fn: Function to filter the dataframe with (ex: lambda x: x['field']=='NA')
+    :param destination: Filename to export to (format as r'path_to_file')
+    :return: The filtered dataframe and exports it to the file as well
+    """
+
+    filtered_df = df.loc[filter_fn(df)]
+    filtered_df = add_transcript_column(filtered_df)
+    filtered_df.to_csv(destination, index=None, header=True, sep='\t')
+    return filtered_df
 
 
 inesss_var_id = ['1-97915614-C-T',
                  '1-97547947-T-A',
                  '1-97981343-A-C',
-                 '1-98039419-C-T'] # Variants recommended for testing by INESSS
+                 '1-98039419-C-T']  # Variants recommended for testing by INESSS
 
-populations = ["eas", "afr", "amr", "asj", "sas", "nfe", "fin"] # Populations available in gnomAD
-
+populations = ["eas", "afr", "amr", "asj", "sas", "nfe", "fin"]  # Populations available in gnomAD
 
 """ GET DPYD VARIANTS """
 
@@ -163,77 +177,65 @@ for variant in gnomad_exome_vcf('1:97443300-98486606'):
 
 # Create dictionary from CPIC variants (rsID -> Functional Status)
 cpic_variants = {}
-cpic_df = pd.read_csv('../data/CPIC_Clean.csv')
+cpic_df = pd.read_csv('../data/clean_CPIC.csv')
 for index, row in cpic_df.iterrows():
     cpic_variants[row['rsID']] = {
-        'rsID': row['rsID'],
-        'ALL_FUNCT_STATUS': row['Allele Functional Status'],
+        'rsID': re.sub('[\W_]+', '', row['rsID']), # Strip other characters
+        'ALL_FUNCT_STATUS': row['Allele Functional Status'].strip(),
     }
 
 cpic_keys = list(cpic_variants.keys()).copy()
 
-
-# Create dictionaries from list using var_id as key
+# Create dictionaries from lists using var_id as key
 clin_dict = create_var_dict(clin_dpyd_variants)
 gnomad_exome_dict = create_var_dict(gnomad_exome_dpyd_variants)
-
 
 """ FORMAT DICTIONARIES """
 
 # Create dictionary with relevant fields for each variant found in gnomad
-clean_dict = create_row_dict(gnomad_exome_dict, clin_dict) # Update entries from exome
+clean_dict = create_row_dict(gnomad_exome_dict, clin_dict)  # Update entries from exome
 
 pre_filter_variants = pd.DataFrame.from_dict(clean_dict, orient='index')
 
 # Export pre_filter version to .tsv
-export_tsv = pre_filter_variants.to_csv (r'../analysis/clean_gnomad.tsv', index = None, header=True, sep='\t')
-
+export_tsv = pre_filter_variants.to_csv(r'../analysis/clean_gnomad.tsv', index=None, header=True, sep='\t')
 
 """ SPLIT DATA """
 
 LOFs = ["HC", "LC"]
-CLIN_SIGs = ["Pathogenic", "Likely_pathogenic" , "Pathogenic/Likely_pathogenic"]
+CLIN_SIGs = ["Pathogenic", "Likely_pathogenic", "Pathogenic/Likely_pathogenic"]
 FUNCT_STATUS = ["No function", "Decreased"]
 
 # Only look through those with no filter
 filtered_variants = pre_filter_variants.loc[(pre_filter_variants['FILTER'] == 'None')]
 
-# Only INESSS variants
-inesss_df = filtered_variants.loc[filtered_variants['INESSS'] == 'True']
-inesss_df = add_transcript_column(inesss_df)
+inesss_df = filter_export_df(filtered_variants, lambda df: df['INESSS'] == 'True', r'../analysis/inesss_variants.tsv')
 
-# CPIC variants, not INESSS
-cpic_df = filtered_variants.loc[filtered_variants['ALL_FUNCT_STATUS'].isin(FUNCT_STATUS) & (filtered_variants['INESSS'] != 'True')]
-cpic_df = add_transcript_column(cpic_df)
+cpic_df = filter_export_df(filtered_variants,
+                           lambda df:
+                           df['ALL_FUNCT_STATUS'].isin(FUNCT_STATUS) &
+                           (df['INESSS'] != 'True'),
+                           r'../analysis/cpic_df.tsv')
 
-# Only likely or pathogenic variants according to ClinVar (not INESSS or CPIC)
-clin_df = filtered_variants.loc[filtered_variants['CLIN_SIG'].isin(CLIN_SIGs) & (filtered_variants['INESSS'] != 'True') & ~filtered_variants['ALL_FUNCT_STATUS'].isin(FUNCT_STATUS)]
-clin_df = add_transcript_column(clin_df)
+clin_df = filter_export_df(filtered_variants,
+                           lambda df:
+                           df['CLIN_SIG'].isin(CLIN_SIGs) &
+                           (df['INESSS'] != 'True') &
+                           ~df['ALL_FUNCT_STATUS'].isin(FUNCT_STATUS),
+                           r'../analysis/inesss_variants.tsv')
 
-# Only HC or LC LOF not in first 3
-lof_df = filtered_variants.loc[filtered_variants['LOF'].isin(LOFs) &
-                                 (filtered_variants['INESSS'] != 'True') &
-                                 ~filtered_variants['ALL_FUNCT_STATUS'].isin(FUNCT_STATUS)&
-                                 ~filtered_variants['CLIN_SIG'].isin(CLIN_SIGs)
-]
-lof_df = add_transcript_column(lof_df)
+lof_df = filter_export_df(filtered_variants,
+                          lambda df:
+                          df['LOF'].isin(LOFs) &
+                          (df['INESSS'] != 'True') &
+                          ~df['ALL_FUNCT_STATUS'].isin(FUNCT_STATUS) &
+                          ~df['CLIN_SIG'].isin(CLIN_SIGs),
+                          r'../analysis/inesss_variants.tsv')
 
-# Those in either of the first 4
-all_df = filtered_variants.loc[filtered_variants['LOF'].isin(LOFs) |
-                                 (filtered_variants['INESSS'] == 'True') |
-                                 filtered_variants['CLIN_SIG'].isin(CLIN_SIGs)|
-                               (filtered_variants['ALL_FUNCT_STATUS'] != 'NA')
-]
-all_df = add_transcript_column(all_df)
-
-
-""" EXPORT TO .TSV """
-
-inesss_df.to_csv (r'../analysis/inesss_variants.tsv', index = None, header=True, sep='\t')
-cpic_df.to_csv (r'../analysis/cpic_variants.tsv', index = None, header=True, sep='\t')
-clin_df.to_csv (r'../analysis/clin_variants.tsv', index = None, header=True, sep='\t')
-lof_df.to_csv (r'../analysis/lof_variants.tsv', index = None, header=True, sep='\t')
-all_df.to_csv (r'../analysis/all_variants.tsv', index = None, header=True, sep='\t')
-
-
-
+all_df = filter_export_df(filtered_variants,
+                          lambda df:
+                          df['LOF'].isin(LOFs) |
+                          (filtered_variants['INESSS'] == 'True') |
+                          filtered_variants['CLIN_SIG'].isin(CLIN_SIGs) |
+                          (filtered_variants['ALL_FUNCT_STATUS'].isin(FUNCT_STATUS)),
+                          r'../analysis/inesss_variants.tsv')
