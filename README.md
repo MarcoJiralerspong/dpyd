@@ -10,24 +10,6 @@ Use the **gnomAD** (genome and exome) and **ClinVar** VCF files to identify vari
 
 Once filtered, we compare the allele frequency of these variants as well as the relative frequency of the INESSS variants (compared to all the variants) for each population provided in gnomAD.
 
-## Process
-
-We begin by downloading our data which comes from 3 sources:
-- gnomAD: It provides us with the allele counts/homozygote counts of variations, separated in to 7 different populations. For each variant, it also specifies the confidence that there is some Loss of Function (LOF) as well as the Filter. This information is available in a VCF file.
-- ClinVar: Has the clinical significance of certain variants available once again in a VCF file.
-- CPIC: Has a list of variants for which fluoropyrimidines might be harmful. Gives us the Allele Functional Status for these variants which is either normal, decreased or no function.
-
-We then combine all 3 data sources together in to a central .tsv file (similar to a .csv except uses tabs instead of commas) where for each variant, we include the relevant fields from each data source.
-
-After, we separate the variants into 4 independent categories (i.e. we exclude from category 2 the variants in category 1, we exclude from category 3 the variants in category 1 and 2, etc.):
-- INESSS: The 4 variants that INESSS recommends that we screen.
-- CPIC: Variants with either "Decreased" or "No function" according to the CPIC.
-- ClinVar: Variants with either "Likely_pathogenic", "Pathogenic/Likely_pathogenic" or "Pathogenic" clinical significance.
-- LOF: Variants with either "HC" or "LC" for LOF.
-
-With the separated data, we can then compare and analyse the relative allele frequencies of different categories for different populations. Specifically, we can examine with plots how effective the 4 variants chosen by INESSS are at dealing with all cases of variants causing defects.
-
-
 ## Required Packages
 
  - numpy
@@ -55,12 +37,13 @@ With the separated data, we can then compare and analyse the relative allele fre
 	 - [Tabix](https://storage.googleapis.com/gnomad-public/release/2.1.1/vcf/genomes/gnomad.genomes.r2.1.1.sites.1.vcf.bgz.tbi)
  - [ClinVar VCF (all chromosomes)](ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar_20190513.vcf.gz)
 	 - [Tabix](ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar_20190513.vcf.gz.tbi)
- -
+ - CPIC recommendations, reformatted version included in `data` directory (original from [here](https://api.pharmgkb.org/v1/download/file/attachment/DPYD_Allele_Functionality_Table.xlsx), downloaded on May 24 2019)
+
 ## Use
 
  1. Navigate in your command line to directory where you want to put project.
  2. Run `git clone https://github.com/MarcoJiralerspong/dpyd.git`
- 3. `cd dpyd` and create folders called `data` and `analysis` respectively.
+ 3. `cd dpyd` and create folder called `analysis`
  4. Download all data files into `data` folder, for example with `wget url` (see structure above).
  5. Navigate to the `scripts` folder and run `python create_tsvs.py` to create .tsv files and then run `python create_graphs.py` to create the graph.
  6. All results will be placed in the `analysis` folder.
@@ -69,10 +52,30 @@ With the separated data, we can then compare and analyse the relative allele fre
  - `clean_gnomad.tsv`: All DPYD variants with their associated ID, clinical signature, allele count, etc.
  - `inesss_variants.tsv`: Same fields as above but only INESSS variants.
  - `clin_variants.tsv`: Only variants that have a "Likely pathogenic", "Likely pathogenic/pathogenic" or "Pathogenic" CLIN SIG and that are not in INESSS.
+- `cpic_variants.tsv`: Only variants that have a "No function" or "Decreased" rating by CPIC
  - `lof_variants.tsv`: Only variants that are not in the previous 2 files and have either a "HC" or "LC" LOF.
- - `all_variants.tsv`: The union of the variants from the previous 3 files.
+ - `all_variants.tsv`: The union of the variants from the previous 4 files.
+ - `all_cpic_variants.tsv`: Same as above but also includes CPIC variants rated as "Normal".
 
-## Methodology
+## Process
+
+We begin by downloading our data which comes from 3 sources:
+- **gnomAD**: It provides us with the allele counts/homozygote counts of variations, separated in to 7 different populations. For each variant, it also specifies the confidence that there is some Loss of Function (LOF) as well as the Filter. This information is available in a VCF file.
+- **ClinVar**: Has the clinical significance of certain variants available once again in a VCF file.
+- **CPIC**: Has a list of variants for which fluoropyrimidines might be harmful. Gives us the Allele Functional Status for these variants which is either normal, decreased or no function.
+
+We then combine all 3 data sources together in to a central .tsv file (similar to a .csv except uses tabs instead of commas) where for each variant, we include the relevant fields from each data source.
+
+After, we separate the variants into 4 independent categories (i.e. we exclude from category 2 the variants in category 1, we exclude from category 3 the variants in category 1 and 2, etc.):
+- **INESSS**: The 4 variants that INESSS recommends that we screen.
+- **CPIC**: Variants with either "Decreased" or "No function" according to the CPIC.
+- **ClinVar**: Variants with either "Likely_pathogenic", "Pathogenic/Likely_pathogenic" or "Pathogenic" clinical significance.
+- **LOF**: Variants with either "HC" or "LC" as LOF.
+
+With the separated data, we can then compare and analyse the relative allele frequencies of different categories for different populations. Specifically, we can examine with plots how effective the 4 variants chosen by INESSS are at dealing with all cases of variants causing defects.
+
+
+## Implementation
  - Download the .vcf.gz files and their associated tabix specified above.
  - Using a region query around the areas specified [here](https://gnomad.broadinstitute.org/gene/ENSG00000188641) with padding of 100 000 on both sides, get all variants associated to the gene DPYD.
    - The gene of the variant is obtained in the INFO.GENEINFO field (1st position) of the VCF file for ClinVar
@@ -88,14 +91,16 @@ With the separated data, we can then compare and analyse the relative allele fre
     - `NHOMALT`: nhomalt from gnomAD.
     - `LOF`: LOF from gnomAD.
     - `INESSS`: `'True'` if VAR_ID in `['1-97915614-C-T', '1-97547947-T-A', '1-97981343-A-C', '1-98039419-C-T']` else `'False'`
+    - `ALL_FUNCT-STATUS`: Status provided by CPIC if found, else `'NA'`
     - `CLIN_SIG`: CLNSIG from ClinVar if found, else `'NA'`.
     - For each population in `["eas", "afr", "amr", "asj", "sas", "nfe", "fin"]`, `AC_pop`, `AN_pop` and `NHOMALT_pop` from gnomAD.
     - `TRANSCRIPT`: Using the VAR_ID, query the variantvalidator.org API and get the (:c.) transcript.
  - Filter the dataframe by only including variants whose `FILTER` is `NONE`.
- - Split the filtered dataframe into three distinct dataframes:
+ - Split the filtered dataframe into four distinct dataframes:
     - INESSS variants which only includes those specified by INESSS.
-    - CLINVAR variants which have a "Likely pathogenic", "Likely pathogenic/pathogenic" or "Pathogenic" CLIN SIG .
-    - LOF variants which have "HC" or "LC" for LOF.
+    - CPIC variants which have "No function" or "Decreased" for `ALL_FUNCT_STATUS`
+    - CLINVAR variants which have a "Likely pathogenic", "Likely pathogenic/pathogenic" or "Pathogenic" `CLIN SIG`.
+    - LOF variants which have "HC" or "LC" for `LOF`.
  - Export the dataframes as .tsv files.
 
 

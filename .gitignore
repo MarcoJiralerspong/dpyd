@@ -1,4 +1,9 @@
-data/
+**.vcf
+**.vcf.gz
+**.vcf.gz.tbi
+**.vcf.bgz
+**.vcf.bgz.tbi
+
 notes/
 analysis/
 .idea/
