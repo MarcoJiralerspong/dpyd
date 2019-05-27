@@ -4,10 +4,29 @@ Analysis of DPYD variants with loss of function characteristics and their freque
 ## Purpose
 Use the **gnomAD** (genome and exome) and **ClinVar** VCF files to identify variants with potential loss of function. The VCFs are parsed in python using [cyvcf2](https://github.com/brentp/cyvcf2) (very fast parsing of VCF with region-queries) to find all variants which belong to the gene DPYD. These variants are then filtered to only include those with no filter and that either exhibit one of the three following characteristics:
  - One of the INESSS variants
+ - No function or decreased function according to CPIC
  - Low or high confidence LOF
  - Likely pathogenic or pathogenic according to ClinVar
 
 Once filtered, we compare the allele frequency of these variants as well as the relative frequency of the INESSS variants (compared to all the variants) for each population provided in gnomAD.
+
+## Process
+
+We begin by downloading our data which comes from 3 sources:
+- gnomAD: It provides us with the allele counts/homozygote counts of variations, separated in to 7 different populations. For each variant, it also specifies the confidence that there is some Loss of Function (LOF) as well as the Filter. This information is available in a VCF file.
+- ClinVar: Has the clinical significance of certain variants available once again in a VCF file.
+- CPIC: Has a list of variants for which fluoropyrimidines might be harmful. Gives us the Allele Functional Status for these variants which is either normal, decreased or no function.
+
+We then combine all 3 data sources together in to a central .tsv file (similar to a .csv except uses tabs instead of commas) where for each variant, we include the relevant fields from each data source.
+
+After, we separate the variants into 4 independent categories (i.e. we exclude from category 2 the variants in category 1, we exclude from category 3 the variants in category 1 and 2, etc.):
+- INESSS: The 4 variants that INESSS recommends that we screen.
+- CPIC: Variants with either "Decreased" or "No function" according to the CPIC.
+- ClinVar: Variants with either "Likely_pathogenic", "Pathogenic/Likely_pathogenic" or "Pathogenic" clinical significance.
+- LOF: Variants with either "HC" or "LC" for LOF.
+
+With the separated data, we can then compare and analyse the relative allele frequencies of different categories for different populations. Specifically, we can examine with plots how effective the 4 variants chosen by INESSS are at dealing with all cases of variants causing defects.
+
 
 ## Required Packages
 
@@ -36,6 +55,7 @@ Once filtered, we compare the allele frequency of these variants as well as the 
 	 - [Tabix](https://storage.googleapis.com/gnomad-public/release/2.1.1/vcf/genomes/gnomad.genomes.r2.1.1.sites.1.vcf.bgz.tbi)
  - [ClinVar VCF (all chromosomes)](ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar_20190513.vcf.gz)
 	 - [Tabix](ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh37/clinvar_20190513.vcf.gz.tbi)
+ -
 ## Use
 
  1. Navigate in your command line to directory where you want to put project.
@@ -77,3 +97,19 @@ Once filtered, we compare the allele frequency of these variants as well as the 
     - CLINVAR variants which have a "Likely pathogenic", "Likely pathogenic/pathogenic" or "Pathogenic" CLIN SIG .
     - LOF variants which have "HC" or "LC" for LOF.
  - Export the dataframes as .tsv files.
+
+
+## Clean CPIC
+
+Unfortunately, the data from CPIC is given in an Excel sheet with poor formatting for parsing. To allow for parsing, some manual formatting is necessary. We create a clean .csv with the important fields from CPIC as follows:
+- Create new spreadsheet
+- Copy over column names
+- Copy over rows which are either "Strong Evidence supporting function", "Moderate Evidence supporting function (in vitro and clinical/ex vivo data)", "In vitro data only and/or limited clinical/ex vivo data"
+- Delete letters which are used for footnotes in rsID column
+- Delete row rs115632870 and rs6668296 since they are linked to previous variant which probably causes decrease in function (as per footnote)
+- Transform row with 2 rsIDs (rs1801267 and rs1801265) into 2 rows, using the value before the comma for the first row and the value after the comma for the second row (for fields without comma, put same in both)
+- For the row with HapB3, only keep the middle variant, deleting the information to the left and right of the commas
+- Delete rows rs143154602, rs72549303, rs72549309, rs1801268, rs111858276, rs137999090 and rs72547601 since they are not in gnomAD.
+- Change rs72549309 to rs539032572 (version compatible with gnomAD)
+- Save as .tsv (to do so in excel, save as .txt and then change the file extension to .tsv)
+
