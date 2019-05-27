@@ -215,14 +215,14 @@ cpic_df = filter_export_df(filtered_variants,
                            lambda df:
                            df['ALL_FUNCT_STATUS'].isin(FUNCT_STATUS) &
                            (df['INESSS'] != 'True'),
-                           r'../analysis/cpic_df.tsv')
+                           r'../analysis/cpic_variants.tsv')
 
 clin_df = filter_export_df(filtered_variants,
                            lambda df:
                            df['CLIN_SIG'].isin(CLIN_SIGs) &
                            (df['INESSS'] != 'True') &
                            ~df['ALL_FUNCT_STATUS'].isin(FUNCT_STATUS),
-                           r'../analysis/inesss_variants.tsv')
+                           r'../analysis/clin_variants.tsv')
 
 lof_df = filter_export_df(filtered_variants,
                           lambda df:
@@ -230,7 +230,7 @@ lof_df = filter_export_df(filtered_variants,
                           (df['INESSS'] != 'True') &
                           ~df['ALL_FUNCT_STATUS'].isin(FUNCT_STATUS) &
                           ~df['CLIN_SIG'].isin(CLIN_SIGs),
-                          r'../analysis/inesss_variants.tsv')
+                          r'../analysis/lof_variants.tsv')
 
 all_df = filter_export_df(filtered_variants,
                           lambda df:
@@ -238,4 +238,12 @@ all_df = filter_export_df(filtered_variants,
                           (filtered_variants['INESSS'] == 'True') |
                           filtered_variants['CLIN_SIG'].isin(CLIN_SIGs) |
                           (filtered_variants['ALL_FUNCT_STATUS'].isin(FUNCT_STATUS)),
-                          r'../analysis/inesss_variants.tsv')
+                          r'../analysis/all_variants.tsv')
+
+all_cpic_df = filter_export_df(filtered_variants,
+                          lambda df:
+                          df['LOF'].isin(LOFs) |
+                          (filtered_variants['INESSS'] == 'True') |
+                          filtered_variants['CLIN_SIG'].isin(CLIN_SIGs) |
+                          (filtered_variants['ALL_FUNCT_STATUS'] != 'NA'),
+                          r'../analysis/all_cpic_variants.tsv')
